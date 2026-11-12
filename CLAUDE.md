@@ -32,6 +32,36 @@ Moose IDs (from an EndeavourOS thread, **not yet confirmed on the user's Lite**)
 `0c45:636a` KYT Camera A, `0c45:636b` KYT Camera B, serial `JMM…`.
 The Lizard's are `bcdc:000a` / `bcdc:000b`, serial `CRSL…`.
 
+## Confirmed on the hardware (2026-11-12, local session)
+
+- **The XU tunnel does not exist on this model.** `read_serial` returns `ENOENT`
+  on the extension-unit query; the Lizard's flash-at-`0xFE00` path is absent.
+  Consistent with `0c45` being Sonix: this unit uses the `SonixCamera.dll`
+  path (`SonixCam_SerialFlashRead`, flash `0x1F100`), not the XU one. Workaround
+  for native capture: `--no-serial`; the serial is in sysfs anyway.
+  - Open consequence for Step 4/5: if JMStudio reads the serial through the XU
+    under Wine it will fail — and **no serial means no calibration download**,
+    which is the whole scan. But don't write off patches `0010`/`0011`: `0010` is
+    *generic* XU passthrough, so it still carries whatever unit this device does
+    expose. Enumerate the real units before concluding
+    (`sudo lsusb -v -d 0c45:636a | grep -A4 -i extension`, note `bUnitID` and
+    `guidExtensionCode`). `ENOENT` means *that* unit/selector is absent, not
+    that XU is unsupported. If the Sonix path turns out to be vendor-USB rather
+    than UVC, `wineusb0.sys` (`0009`/`0014`) is the relevant patch instead.
+- **~85% of frames arrive without a JPEG EOI marker.** Every frame has an SOI,
+  `lost_intervals` is clean, and **no frame carries `V4L2_BUF_FLAG_ERROR`** —
+  so this is *not* the Lizard's `-EPROTO` packet loss. Upstream's script
+  discards them, leaving ~1–2 fps of 10. Ruled out: buffer starvation (same at
+  NBUFS 4/8/16) and inter-camera contention (single-camera geometry mode is as
+  bad).
+  - **Test the cheap hypothesis first:** append `\xff\xd9` to a rejected frame
+    and decode it. If it renders a complete, correct image, the camera simply
+    omits EOI and the fix is one line in the capture script's validity check —
+    not a bandwidth problem. If the bottom is grey/missing, it is real
+    truncation. A known Logitech case has exactly this shape, except that
+    device sets `UVC_STREAM_ERR`; this one doesn't, which argues for "complete
+    but unterminated".
+
 ## Open / unverified
 
 - The Moose **Lite**'s own VID:PIDs. `tools/probe-scanner.sh` answers this; it

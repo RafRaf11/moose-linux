@@ -248,6 +248,51 @@ If it turns out JMStudio drives this model through **libusb** (`wineusb0.sys`,
 patches `0009`/`0014`) rather than V4L2, uncomment the `TAG+="uaccess"` lines in
 `udev/99-3dmakerpro-scanner.rules` so the raw USB device is reachable.
 
+## 5a. Already established on the hardware (2026-11-12)
+
+A local session ran steps 1–3. Two results change what follows.
+
+**The XU tunnel doesn't exist on this model.** `read_serial` → `ENOENT`; the
+Lizard's flash-at-`0xFE00` path is absent. `0c45` is Sonix, so this unit
+presumably uses the `SonixCamera.dll` path (`SonixCam_SerialFlashRead`, flash
+`0x1F100`). Use `--no-serial` for native capture; the serial is in sysfs.
+
+This matters for step 4 — **no serial means no calibration download, which is
+the entire scan.** Before concluding the Wine patches can't help: `0010` is a
+*generic* UVC extension-unit passthrough, and `ENOENT` means the unit/selector
+you asked for is absent, not that XU is unsupported. Enumerate what this device
+actually exposes:
+
+```bash
+sudo lsusb -v -d 0c45:636a | grep -iA6 'extension\|guidExtension\|bUnitID'
+```
+
+If there's an XU with a different `bUnitID`/GUID, patch `0010` still carries it.
+If the Sonix path is vendor-USB rather than UVC, `wineusb0.sys` (`0009`/`0014`)
+is the relevant one, and the `TAG+="uaccess"` udev lines need uncommenting.
+
+**~85% of frames have no JPEG EOI.** Every frame has an SOI, `lost_intervals`
+is clean, and **no frame has `V4L2_BUF_FLAG_ERROR`** — so this is *not* the
+`-EPROTO` packet loss in §6. Upstream's script discards them → ~1–2 fps of 10.
+Buffer starvation (NBUFS 4/8/16) and inter-camera contention (geometry mode
+alone is as bad) are both ruled out.
+
+Work the cheap hypothesis first, in this order:
+
+1. **Append `\xff\xd9` to a rejected frame and decode it.** Complete, correct
+   image → the camera just omits EOI, and the fix is one line in the script's
+   validity check. Grey or missing bottom → real truncation, go to 2. This one
+   test splits the whole problem and costs a minute.
+2. `v4l2-ctl -d /dev/videoN --get-fmt-video` — if `sizeimage` is smaller than a
+   real 1280×720 MJPEG frame, the buffer is the limit (the `dwMaxVideoFrameSize`
+   theory). The Lizard negotiated 1,843,200.
+3. `dmesg | grep -i uvcvideo` while streaming — look for "No fast enough alt
+   setting for requested bandwidth", dropped payloads, or overflow messages.
+4. Capture independently of the script:
+   `v4l2-ctl -d /dev/videoN --set-fmt-video=width=1280,height=720,pixelformat=MJPG --stream-mmap --stream-count=20 --stream-to=/tmp/x.mjpg`.
+   Same short frames → not the script. Also compare frame byte sizes: real
+   truncation is erratic and small, a missing EOI is not.
+
 ## 6. Two failure modes that will otherwise waste your time
 
 **Grey stripes across the image.** Not a software bug. USB packets are lost on
