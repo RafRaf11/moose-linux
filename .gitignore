@@ -1,0 +1,5 @@
+vendor/
+out/
+*.flatpak
+*.log
+__pycache__/

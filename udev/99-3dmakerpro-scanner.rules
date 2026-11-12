@@ -1,0 +1,35 @@
+# 3DMakerPro / JM Studio scanner cameras on Linux.
+#
+# Install to /etc/udev/rules.d/99-3dmakerpro-scanner.rules (setup-host.sh does
+# this, and rewrites the IDs if your scanner reports different ones).
+#
+# Why: JM Studio waits only about half a second for the first camera frame.
+# Bringing a camera back from USB runtime autosuspend takes longer than that,
+# so the first connect after the scanner has been idle fails and a retry
+# works. Keeping these two devices awake removes the race.
+#
+# idVendor 0c45 is Microdia/Sonix and is shared by a great many webcams, so
+# every rule below also matches idProduct. Do not loosen that: a bare
+# idVendor=="0c45" rule would pin unrelated cameras awake too.
+#
+#   0c45:636a  KYT Camera A  (geometry camera; lights the projector)
+#   0c45:636b  KYT Camera B  (texture camera)
+#
+# Both report the same serial (the scanner's, e.g. JMM4003238).
+
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0c45", ATTR{idProduct}=="636a", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0c45", ATTR{idProduct}=="636b", TEST=="power/control", ATTR{power/control}="on"
+
+# Creality CR-Scan Lizard, the model the upstream Wine patches were developed
+# against. Harmless to keep; it matches nothing if you do not own one.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="bcdc", TEST=="power/control", ATTR{power/control}="on"
+
+# Raw USB access, needed only if JM Studio drives your model through libusb
+# (Wine's wineusb0.sys) rather than through V4L2. The Lizard and the Moose use
+# the camera path, so this is commented out by default.
+#
+# TAG+="uaccess" grants the user logged in at the seat, which is what you want;
+# MODE="0666" would hand the device to every process on the machine.
+#
+#SUBSYSTEM=="usb", ATTR{idVendor}=="0c45", ATTR{idProduct}=="636a", TAG+="uaccess"
+#SUBSYSTEM=="usb", ATTR{idVendor}=="0c45", ATTR{idProduct}=="636b", TAG+="uaccess"
