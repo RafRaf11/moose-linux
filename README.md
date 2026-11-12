@@ -179,6 +179,7 @@ values in upstream's table may be wrong for a Moose Lite.
 | `tools/moose-capture.py` | native V4L2 capture via upstream's script, with the Moose's IDs |
 | `udev/99-3dmakerpro-scanner.rules` | keeps the two cameras out of USB autosuspend |
 | `fetch-upstream.sh` | clones `poita66/jmstudio-flatpak` into `vendor/` |
+| `HANDOFF.md` | self-contained brief for a Claude Code instance on the machine with the scanner |
 
 The udev rule matches on **both** `idVendor` and `idProduct`. `0c45` is shared
 by a great many webcams, so a vendor-only rule would pin unrelated cameras
