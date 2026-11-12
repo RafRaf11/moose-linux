@@ -8,12 +8,50 @@ written in a sandbox VM with **no USB passthrough, no `/dev/video*`, no flatpak
 and no wine**, so nothing below has been run against the hardware. You have the
 hardware; that's the whole point of the handoff.
 
-Start here:
+## 0. Getting this repo
+
+`RafRaf11/moose-linux` is **private**, so a bare `git clone` will fail with
+"repository not found" (that's what GitHub says for a private repo you can't
+see — it does not mean the URL is wrong).
+
+**Preferred — authenticate as the repo owner.** Check first; the machine may
+already be logged in:
 
 ```bash
-git clone https://github.com/RafRaf11/moose-linux.git
+gh auth status
+```
+
+If it isn't, start the login yourself and hand the user only the one-time code
+and URL to enter in their browser — don't ask them to run the command:
+
+```bash
+gh auth login --web --git-protocol https --hostname github.com
+```
+
+Then:
+
+```bash
+gh repo clone RafRaf11/moose-linux
 cd moose-linux && cat CLAUDE.md
 ```
+
+**Fallback — the git bundle, no credentials needed.** The user was sent
+`moose-linux.bundle`, a complete clone of the repo including history. If it's
+in `~/Downloads`:
+
+```bash
+git clone ~/Downloads/moose-linux.bundle moose-linux
+cd moose-linux
+git remote set-url origin https://github.com/RafRaf11/moose-linux.git
+cat CLAUDE.md
+```
+
+That gives you the full working tree immediately. You'll still need `gh auth
+login` before you can **push** anything back.
+
+**Last resort:** everything you strictly need to proceed is in this file. The
+repo adds the four scripts, which you could rewrite from the descriptions in
+§5 — but ask the user for access before spending time on that.
 
 ---
 
